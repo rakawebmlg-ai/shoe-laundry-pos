@@ -304,38 +304,65 @@ export const useAppStore = create<AppState>()(
       updateOrderStatus: (id, status, note) => {
         const currentOrders = get().orders;
         const targetOrder = currentOrders.find((o) => o.id === id);
-        if (!targetOrder) return;
+        if (!targetOrder) {
+          console.warn('updateOrderStatus: Order not found for id:', id);
+          return;
+        }
+
+        const now = new Date().toISOString();
+        const isCompleted = ['selesai', 'sudah_diambil'].includes(status);
 
         const updatedOrder: Order = {
           ...targetOrder,
           orderStatus: status,
           statusHistory: [
             ...targetOrder.statusHistory,
-            { status, timestamp: new Date().toISOString(), note },
+            { status, timestamp: now, note },
           ],
-          completedDate: ['selesai', 'sudah_diambil'].includes(status)
-            ? new Date().toISOString()
-            : targetOrder.completedDate,
-          updatedAt: new Date().toISOString(),
+          completedDate: isCompleted ? now : targetOrder.completedDate,
+          updatedAt: now,
         };
 
         set((state) => ({
           orders: state.orders.map((o) => (o.id === id ? updatedOrder : o)),
         }));
 
-        // Sync to Supabase
-        supabase.from('orders').update({
-          order_status: updatedOrder.orderStatus,
+        // Sync to Supabase - build payload carefully, avoid undefined values
+        const updatePayload: Record<string, any> = {
+          order_status: status,
           status_history: updatedOrder.statusHistory,
-          completed_date: updatedOrder.completedDate,
-          updated_at: updatedOrder.updatedAt
-        }).eq('id', id)
-        .then(({ error }) => { if (error) console.error('Supabase Error (updateOrderStatus):', error); });
+          updated_at: now,
+        };
+        if (isCompleted) {
+          updatePayload.completed_date = now;
+        }
+
+        supabase.from('orders').update(updatePayload).eq('id', id).select()
+          .then(({ error, data }) => {
+            if (error) {
+              // If completed_date column doesn't exist, retry without it
+              if (isCompleted && error.message?.includes('completed_date')) {
+                const { completed_date, ...fallbackPayload } = updatePayload;
+                supabase.from('orders').update(fallbackPayload).eq('id', id)
+                  .then(({ error: retryError }) => {
+                    if (retryError) console.error('Supabase Error (updateOrderStatus retry):', JSON.stringify(retryError));
+                    else console.log('Supabase: Order status updated to', status, '(without completed_date)');
+                  });
+              } else {
+                console.error('Supabase Error (updateOrderStatus):', JSON.stringify(error));
+              }
+            } else {
+              console.log('Supabase: Order status updated to', status, 'for', id);
+            }
+          });
       },
-      deleteOrder: (id) =>
+      deleteOrder: (id) => {
         set((state) => ({
           orders: state.orders.filter((o) => o.id !== id),
-        })),
+        }));
+        supabase.from('orders').delete().eq('id', id)
+          .then(({ error }) => { if (error) console.error('Supabase Error (deleteOrder):', error); });
+      },
 
       // Payments
       payments: [],
@@ -358,18 +385,40 @@ export const useAppStore = create<AppState>()(
 
       // Expenses
       expenses: [],
-      addExpense: (data) =>
+      addExpense: (data) => {
+        const newExpense = { ...data, id: generateId() };
         set((state) => ({
-          expenses: [{ ...data, id: generateId() }, ...state.expenses],
-        })),
-      updateExpense: (id, data) =>
+          expenses: [newExpense, ...state.expenses],
+        }));
+        supabase.from('expenses').insert({
+          id: newExpense.id,
+          description: newExpense.name,
+          amount: newExpense.amount,
+          category: newExpense.category,
+          date: newExpense.date,
+          notes: newExpense.note || '',
+        }).then(({ error }) => { if (error) console.error('Supabase Error (addExpense):', error); });
+      },
+      updateExpense: (id, data) => {
         set((state) => ({
           expenses: state.expenses.map((e) => (e.id === id ? { ...e, ...data } : e)),
-        })),
-      deleteExpense: (id) =>
+        }));
+        const updatePayload: Record<string, any> = {};
+        if (data.name) updatePayload.description = data.name;
+        if (data.amount !== undefined) updatePayload.amount = data.amount;
+        if (data.category) updatePayload.category = data.category;
+        if (data.date) updatePayload.date = data.date;
+        if (data.note !== undefined) updatePayload.notes = data.note;
+        supabase.from('expenses').update(updatePayload).eq('id', id)
+          .then(({ error }) => { if (error) console.error('Supabase Error (updateExpense):', error); });
+      },
+      deleteExpense: (id) => {
         set((state) => ({
           expenses: state.expenses.filter((e) => e.id !== id),
-        })),
+        }));
+        supabase.from('expenses').delete().eq('id', id)
+          .then(({ error }) => { if (error) console.error('Supabase Error (deleteExpense):', error); });
+      },
 
       // Users
       users: [],
