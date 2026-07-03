@@ -284,30 +284,54 @@ export const useAppStore = create<AppState>()(
 
         return newOrder;
       },
-      updateOrder: (id, data) =>
+      updateOrder: (id, data) => {
         set((state) => ({
           orders: state.orders.map((o) =>
             o.id === id ? { ...o, ...data, updatedAt: new Date().toISOString() } : o
           ),
-        })),
-      updateOrderStatus: (id, status, note) =>
+        }));
+
+        // Sync to Supabase
+        const updatedFields: any = { updated_at: new Date().toISOString() };
+        if (data.orderStatus) updatedFields.order_status = data.orderStatus;
+        if (data.paymentStatus) updatedFields.payment_status = data.paymentStatus;
+        if (data.amountPaid !== undefined) updatedFields.amount_paid = data.amountPaid;
+        if (data.remaining !== undefined) updatedFields.remaining = data.remaining;
+        
+        supabase.from('orders').update(updatedFields).eq('id', id)
+          .then(({ error }) => { if (error) console.error('Supabase Error (updateOrder):', error); });
+      },
+      updateOrderStatus: (id, status, note) => {
+        const currentOrders = get().orders;
+        const targetOrder = currentOrders.find((o) => o.id === id);
+        if (!targetOrder) return;
+
+        const updatedOrder: Order = {
+          ...targetOrder,
+          orderStatus: status,
+          statusHistory: [
+            ...targetOrder.statusHistory,
+            { status, timestamp: new Date().toISOString(), note },
+          ],
+          completedDate: ['selesai', 'sudah_diambil'].includes(status)
+            ? new Date().toISOString()
+            : targetOrder.completedDate,
+          updatedAt: new Date().toISOString(),
+        };
+
         set((state) => ({
-          orders: state.orders.map((o) => {
-            if (o.id !== id) return o;
-            return {
-              ...o,
-              orderStatus: status,
-              statusHistory: [
-                ...o.statusHistory,
-                { status, timestamp: new Date().toISOString(), note },
-              ],
-              completedDate: ['selesai', 'sudah_diambil'].includes(status)
-                ? new Date().toISOString()
-                : o.completedDate,
-              updatedAt: new Date().toISOString(),
-            };
-          }),
-        })),
+          orders: state.orders.map((o) => (o.id === id ? updatedOrder : o)),
+        }));
+
+        // Sync to Supabase
+        supabase.from('orders').update({
+          order_status: updatedOrder.orderStatus,
+          status_history: updatedOrder.statusHistory,
+          completed_date: updatedOrder.completedDate,
+          updated_at: updatedOrder.updatedAt
+        }).eq('id', id)
+        .then(({ error }) => { if (error) console.error('Supabase Error (updateOrderStatus):', error); });
+      },
       deleteOrder: (id) =>
         set((state) => ({
           orders: state.orders.filter((o) => o.id !== id),
