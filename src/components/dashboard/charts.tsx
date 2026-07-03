@@ -15,13 +15,7 @@ import {
   YAxis,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  getRevenueData30Days,
-  getOrdersDaily,
-  getOrderStatusData,
-  getTopServicesData,
-  getPaymentMethodData,
-} from '@/lib/mock-data';
+import { useAppStore } from '@/lib/store';
 import { formatCurrency } from '@/lib/utils/format';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
@@ -47,14 +41,75 @@ export function DashboardCharts() {
   const [servicesData, setServicesData] = useState<any[]>([]);
   const [paymentData, setPaymentData] = useState<any[]>([]);
 
+  const orders = useAppStore((s) => s.orders);
+  const payments = useAppStore((s) => s.payments);
+
   useEffect(() => {
-    setRevenueData(getRevenueData30Days());
-    setOrderData(getOrdersDaily());
-    setStatusData(getOrderStatusData());
-    setServicesData(getTopServicesData());
-    setPaymentData(getPaymentMethodData());
+    // Generate revenue & order data for the last 30 days
+    const newRevenueData = [];
+    const newOrderData = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+      
+      const dayOrders = orders.filter((o) => {
+        const od = new Date(o.orderDate);
+        return od.toDateString() === d.toDateString();
+      });
+      
+      const revenue = dayOrders.reduce((acc, o) => acc + o.amountPaid, 0);
+      newRevenueData.push({ date: dateStr, pendapatan: revenue });
+      newOrderData.push({ date: dateStr, order: dayOrders.length });
+    }
+    setRevenueData(newRevenueData);
+    setOrderData(newOrderData);
+
+    // Order status data
+    const statusCount: Record<string, number> = {};
+    orders.forEach((o) => {
+      const label =
+        o.orderStatus === 'baru' ? 'Baru' :
+        o.orderStatus === 'dicuci' ? 'Dicuci' :
+        o.orderStatus === 'pengeringan' ? 'Pengeringan' :
+        o.orderStatus === 'finishing' ? 'Finishing' :
+        o.orderStatus === 'qc' ? 'QC' :
+        o.orderStatus === 'siap_diambil' ? 'Siap Diambil' :
+        o.orderStatus === 'selesai' ? 'Selesai' : 'Sudah Diambil';
+      statusCount[label] = (statusCount[label] || 0) + 1;
+    });
+    setStatusData(Object.entries(statusCount).map(([name, value]) => ({ name, value })));
+
+    // Top services data
+    const serviceCount: Record<string, number> = {};
+    orders.forEach((o) => {
+      o.items.forEach((item) => {
+        serviceCount[item.serviceName] = (serviceCount[item.serviceName] || 0) + item.qty;
+      });
+    });
+    setServicesData(
+      Object.entries(serviceCount)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 6)
+    );
+
+    // Payment method data
+    const methodCount: Record<string, number> = {};
+    payments.forEach((p) => {
+      const label =
+        p.method === 'tunai' ? 'Tunai' :
+        p.method === 'transfer_bank' ? 'Transfer' :
+        p.method === 'qris' ? 'QRIS' :
+        p.method === 'gopay' ? 'GoPay' :
+        p.method === 'ovo' ? 'OVO' :
+        p.method === 'dana' ? 'DANA' : 'ShopeePay';
+      methodCount[label] = (methodCount[label] || 0) + 1;
+    });
+    setPaymentData(Object.entries(methodCount).map(([name, value]) => ({ name, value })));
+
     setMounted(true);
-  }, []);
+  }, [orders, payments]);
 
   if (!mounted) {
     return <div className="h-[400px] w-full skeleton rounded-xl" />;

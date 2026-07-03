@@ -41,6 +41,7 @@ export default function InvoicesPage() {
   const searchParams = useSearchParams();
   const autoPrintId = searchParams.get('id');
   const shouldPrint = searchParams.get('print');
+  const hasAutoPrinted = useRef(false);
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -60,9 +61,10 @@ export default function InvoicesPage() {
 
   // Auto open and print if query params exist
   useEffect(() => {
-    if (autoPrintId && shouldPrint === 'true' && orders.length > 0) {
+    if (autoPrintId && shouldPrint === 'true' && orders.length > 0 && !hasAutoPrinted.current) {
       const order = orders.find(o => o.id === autoPrintId);
       if (order) {
+        hasAutoPrinted.current = true;
         setSelectedOrder(order);
         setPreviewOpen(true);
         // Add a slight delay to ensure component is rendered
@@ -71,7 +73,7 @@ export default function InvoicesPage() {
         }, 1000);
       }
     }
-  }, [autoPrintId, shouldPrint, orders, handlePrint]);
+  }, [autoPrintId, shouldPrint, orders]); // Removed handlePrint to prevent infinite loop
 
   const openPreview = (order: Order) => {
     setSelectedOrder(order);

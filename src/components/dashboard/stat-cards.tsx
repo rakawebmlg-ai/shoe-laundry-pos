@@ -1,7 +1,7 @@
 'use client';
 
 import { useAppStore } from '@/lib/store';
-import { getDashboardStats } from '@/lib/mock-data';
+// import { getDashboardStats } from '@/lib/mock-data';
 import { formatCurrency } from '@/lib/utils/format';
 import {
   Users,
@@ -20,12 +20,54 @@ import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 
 export function StatCards() {
-  const [stats, setStats] = useState<ReturnType<typeof getDashboardStats> | null>(null);
+  const orders = useAppStore((s) => s.orders);
+  const customers = useAppStore((s) => s.customers);
+  const expenses = useAppStore((s) => s.expenses);
 
-  // Use useEffect to prevent hydration mismatch since we rely on current date for stats
+  // Compute stats based on the actual store state
+  const computeStats = () => {
+    const today = new Date().toDateString();
+    const thisMonth = new Date().getMonth();
+    const thisYear = new Date().getFullYear();
+
+    const ordersToday = orders.filter((o) => new Date(o.orderDate).toDateString() === today);
+    const ordersThisMonth = orders.filter((o) => {
+      const d = new Date(o.orderDate);
+      return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+    });
+    
+    const inProgress = orders.filter((o) => ['baru', 'dicuci', 'pengeringan', 'finishing', 'qc'].includes(o.orderStatus));
+    const readyForPickup = orders.filter((o) => o.orderStatus === 'siap_diambil');
+    const completed = orders.filter((o) => ['selesai', 'sudah_diambil'].includes(o.orderStatus));
+
+    const revenueToday = ordersToday.reduce((acc, o) => acc + o.amountPaid, 0);
+    const revenueThisMonth = ordersThisMonth.reduce((acc, o) => acc + o.amountPaid, 0);
+    const expensesThisMonth = expenses
+      .filter((e) => {
+        const d = new Date(e.date);
+        return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+      })
+      .reduce((acc, e) => acc + e.amount, 0);
+
+    return {
+      totalCustomers: customers.length,
+      ordersToday: ordersToday.length,
+      ordersThisMonth: ordersThisMonth.length,
+      ordersInProgress: inProgress.length,
+      ordersReadyForPickup: readyForPickup.length,
+      ordersCompleted: completed.length,
+      revenueToday,
+      revenueThisMonth,
+      expensesThisMonth,
+      netProfit: revenueThisMonth - expensesThisMonth,
+    };
+  };
+
+  const [stats, setStats] = useState<ReturnType<typeof computeStats> | null>(null);
+
   useEffect(() => {
-    setStats(getDashboardStats());
-  }, []);
+    setStats(computeStats());
+  }, [orders, customers, expenses]);
 
   if (!stats) {
     return (
