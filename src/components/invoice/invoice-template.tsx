@@ -16,7 +16,7 @@ export const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(
     // Generate URL for QR code (mock tracking URL)
     const trackingUrl = typeof window !== 'undefined' 
       ? `${window.location.origin}/track/${order.invoiceNumber}` 
-      : `https://shoecleanpro.com/track/${order.invoiceNumber}`;
+      : `${process.env.NEXT_PUBLIC_SITE_URL || 'https://shoe-laundry-cyorljbyt-rakaweb.vercel.app'}/track/${order.invoiceNumber}`;
 
     if (printType === 'thermal58' || printType === 'thermal80') {
       const is58 = printType === 'thermal58';
