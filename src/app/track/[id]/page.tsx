@@ -9,15 +9,16 @@ import { Clock, CheckCircle2 } from 'lucide-react';
 
 // Next.js page params
 interface TrackPageProps {
-  params: {
+  params: Promise<{
     id: string; // The invoice number
-  };
+  }>;
 }
 
 export const dynamic = 'force-dynamic';
 
 export default async function TrackPage({ params }: TrackPageProps) {
-  const invoiceNumber = params.id;
+  const resolvedParams = await params;
+  const invoiceNumber = resolvedParams.id;
 
   // Fetch the order from Supabase
   const { data: orderData, error } = await supabase
