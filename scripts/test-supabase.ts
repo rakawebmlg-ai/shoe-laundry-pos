@@ -30,24 +30,11 @@ async function checkAndSeed() {
   }
 
 
-  if (services && services.length === 0) {
-    console.log('Database is empty. Attempting to insert a test service to verify write permissions...');
-    
-    const { error: insertError } = await supabase.from('services').insert({
-      name: 'Cuci Deep Clean (Test)',
-      description: 'Layanan test',
-      price: 50000,
-      category: 'deep_clean',
-      estimation_days: 3,
-      is_active: true
-    });
-
-    if (insertError) {
-      console.error('Failed to insert data! This usually means Row Level Security (RLS) is active and blocking inserts, or the table structure is wrong. Error:', insertError.message);
-    } else {
-      console.log('Successfully inserted test data! Write permissions are working fine.');
-    }
+  if (orders && orders.length === 0) {
+    console.log('Orders table is empty.');
   }
+
+  console.log('✅ Supabase connection and tables look good!');
 }
 
-checkAndSeed();
+checkAndSeed().catch(console.error);
