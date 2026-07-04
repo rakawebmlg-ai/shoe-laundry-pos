@@ -20,15 +20,23 @@ export default function DashboardPage() {
       </div>
 
       <StatCards />
-      
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2">
-          <DashboardCharts />
+
+      {currentUser?.role === 'admin' && (
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-6">
+          <div className="xl:col-span-2">
+            <DashboardCharts />
+          </div>
+          <div className="xl:col-span-1 mt-6 xl:mt-0">
+            <RecentActivity />
+          </div>
         </div>
-        <div className="xl:col-span-1 mt-6">
+      )}
+
+      {currentUser?.role === 'kasir' && (
+        <div className="grid grid-cols-1 gap-6 mt-6">
           <RecentActivity />
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -4,13 +4,15 @@ import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { Sidebar } from './sidebar';
 import { Header } from './header';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const collapsed = useAppStore((s) => s.sidebarCollapsed);
+  const currentUser = useAppStore((s) => s.currentUser);
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -19,6 +21,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       useAppStore.getState().initialize();
     }
   }, [isAuthenticated, router]);
+
+  // Protect kasir from admin routes
+  useEffect(() => {
+    if (isAuthenticated && currentUser?.role === 'kasir') {
+      const restrictedRoutes = ['/expenses', '/reports', '/users', '/settings', '/payments'];
+      if (restrictedRoutes.some(route => pathname.startsWith(route))) {
+        router.push('/');
+      }
+    }
+  }, [isAuthenticated, currentUser, pathname, router]);
 
   if (!isAuthenticated) {
     return null;

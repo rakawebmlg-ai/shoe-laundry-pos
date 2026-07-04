@@ -23,6 +23,7 @@ export function StatCards() {
   const orders = useAppStore((s) => s.orders);
   const customers = useAppStore((s) => s.customers);
   const expenses = useAppStore((s) => s.expenses);
+  const currentUser = useAppStore((s) => s.currentUser);
 
   // Compute stats based on the actual store state
   const computeStats = () => {
@@ -157,9 +158,13 @@ export function StatCards() {
     },
   ];
 
+  const filteredCards = currentUser?.role === 'kasir' 
+    ? cards.slice(0, 6) 
+    : cards;
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-      {cards.map((card, i) => (
+      {filteredCards.map((card, i) => (
         <Card key={i} className="border-border shadow-sm hover:shadow-md transition-shadow">
           <CardContent className="p-4 flex items-center gap-4">
             <div

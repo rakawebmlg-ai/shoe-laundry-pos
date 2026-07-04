@@ -30,7 +30,7 @@ interface AppState {
   // Auth
   isAuthenticated: boolean;
   currentUser: User | null;
-  login: (email: string, password: string) => boolean;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
 
   // Sidebar
@@ -68,9 +68,9 @@ interface AppState {
 
   // Users
   users: User[];
-  addUser: (user: Omit<User, 'id' | 'createdAt'>) => void;
-  updateUser: (id: string, data: Partial<User>) => void;
-  deleteUser: (id: string) => void;
+  addUser: (user: Omit<User, 'id' | 'createdAt'>, password?: string) => Promise<void>;
+  updateUser: (id: string, data: Partial<User>, newPassword?: string) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
 
   // Settings
   settings: BusinessSettings;
@@ -161,27 +161,43 @@ export const useAppStore = create<AppState>()(
       // Auth
       isAuthenticated: false,
       currentUser: null,
-      login: (email: string, password: string) => {
-        // Dummy login — accept any valid email with password "admin123" or "kasir123"
-        const user = get().users.find((u) => u.email === email && u.isActive);
-        if (user && (password === 'admin123' || password === 'kasir123')) {
-          set({ isAuthenticated: true, currentUser: user });
+      login: async (email: string, password: string) => {
+        try {
+          const { hashPassword } = await import('@/lib/utils/format');
+          const hashedPassword = await hashPassword(password);
+
+          const { data: user, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', email)
+            .eq('password', hashedPassword)
+            .eq('status', 'active') // Or 'Aktif' depending on your data
+            .single();
+
+          if (error || !user) {
+            console.error('Login error:', error);
+            return false;
+          }
+
+          // Update last_login timestamp
+          await supabase.from('users').update({ last_login: new Date().toISOString() }).eq('id', user.id);
+
+          set({ 
+            isAuthenticated: true, 
+            currentUser: {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              role: user.role,
+              isActive: true,
+              createdAt: user.joined_at || new Date().toISOString()
+            } 
+          });
           return true;
+        } catch (err) {
+          console.error('Unexpected login error:', err);
+          return false;
         }
-        // Also accept demo credentials
-        if (email === 'admin@shoecleanpro.com' && password === 'admin123') {
-          const adminUser = get().users[0] || {
-            id: 'admin-fallback',
-            name: 'Admin Utama',
-            email: 'admin@shoecleanpro.com',
-            role: 'admin',
-            isActive: true,
-            createdAt: new Date().toISOString()
-          };
-          set({ isAuthenticated: true, currentUser: adminUser });
-          return true;
-        }
-        return false;
       },
       logout: () => set({ isAuthenticated: false, currentUser: null }),
 
@@ -421,19 +437,70 @@ export const useAppStore = create<AppState>()(
       },
 
       // Users
+      // Users
       users: [],
-      addUser: (data) =>
-        set((state) => ({
-          users: [{ ...data, id: generateId(), createdAt: new Date().toISOString() }, ...state.users],
-        })),
-      updateUser: (id, data) =>
+      addUser: async (data, password) => {
+        const id = generateId();
+        const createdAt = new Date().toISOString();
+        const newUser = { ...data, id, createdAt };
+        
+        set((state) => ({ users: [newUser, ...state.users] }));
+        
+        try {
+          let hashedPassword = 'admin123';
+          if (password) {
+            const { hashPassword } = await import('@/lib/utils/format');
+            hashedPassword = await hashPassword(password);
+          }
+          
+          await supabase.from('users').insert({
+            id: newUser.id,
+            name: newUser.name,
+            email: newUser.email,
+            role: newUser.role,
+            status: newUser.isActive ? 'active' : 'inactive',
+            joined_at: newUser.createdAt,
+            password: hashedPassword
+          });
+        } catch (error) {
+          console.error('Supabase Error (addUser):', error);
+        }
+      },
+      updateUser: async (id, data, newPassword) => {
         set((state) => ({
           users: state.users.map((u) => (u.id === id ? { ...u, ...data } : u)),
-        })),
-      deleteUser: (id) =>
+        }));
+        
+        try {
+          const updatePayload: Record<string, any> = {};
+          if (data.name) updatePayload.name = data.name;
+          if (data.email) updatePayload.email = data.email;
+          if (data.role) updatePayload.role = data.role;
+          if (data.isActive !== undefined) updatePayload.status = data.isActive ? 'active' : 'inactive';
+          
+          if (newPassword) {
+            const { hashPassword } = await import('@/lib/utils/format');
+            updatePayload.password = await hashPassword(newPassword);
+          }
+          
+          if (Object.keys(updatePayload).length > 0) {
+            await supabase.from('users').update(updatePayload).eq('id', id);
+          }
+        } catch (error) {
+          console.error('Supabase Error (updateUser):', error);
+        }
+      },
+      deleteUser: async (id) => {
         set((state) => ({
           users: state.users.filter((u) => u.id !== id),
-        })),
+        }));
+        
+        try {
+          await supabase.from('users').delete().eq('id', id);
+        } catch (error) {
+          console.error('Supabase Error (deleteUser):', error);
+        }
+      },
 
       // Settings
       settings: defaultSettings,

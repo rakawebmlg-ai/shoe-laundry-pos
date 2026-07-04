@@ -39,6 +39,7 @@ interface DataTableProps<TData, TValue> {
   searchKey?: string;
   searchPlaceholder?: string;
   actionButton?: React.ReactNode;
+  filterContent?: React.ReactNode;
 }
 
 export function DataTable<TData, TValue>({
@@ -47,6 +48,7 @@ export function DataTable<TData, TValue>({
   searchKey,
   searchPlaceholder = 'Cari...',
   actionButton,
+  filterContent,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -79,9 +81,9 @@ export function DataTable<TData, TValue>({
   return (
     <div className="w-full space-y-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {searchKey ? (
-            <div className="relative w-full sm:w-[300px]">
+            <div className="relative w-full sm:w-[250px]">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder={searchPlaceholder}
@@ -93,7 +95,7 @@ export function DataTable<TData, TValue>({
               />
             </div>
           ) : (
-            <div className="relative w-full sm:w-[300px]">
+            <div className="relative w-full sm:w-[250px]">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder={searchPlaceholder}
@@ -103,6 +105,7 @@ export function DataTable<TData, TValue>({
               />
             </div>
           )}
+          {filterContent}
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <DropdownMenu>

@@ -84,7 +84,7 @@ export default function UsersPage() {
     setFormOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name || !email) {
       toast.error('Nama dan Email wajib diisi');
       return;
@@ -96,34 +96,34 @@ export default function UsersPage() {
     }
 
     if (editingUser) {
-      updateUser(editingUser.id, { name, email, role, isActive });
+      await updateUser(editingUser.id, { name, email, role, isActive }, password || undefined);
       toast.success('Data pengguna berhasil diperbarui');
     } else {
-      addUser({ name, email, role, isActive });
+      await addUser({ name, email, role, isActive }, password);
       toast.success('Pengguna baru berhasil ditambahkan');
     }
     setFormOpen(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (deleteId) {
       if (deleteId === currentUser?.id) {
         toast.error('Anda tidak dapat menghapus akun Anda sendiri');
         setDeleteId(null);
         return;
       }
-      deleteUser(deleteId);
+      await deleteUser(deleteId);
       toast.success('Pengguna berhasil dihapus');
       setDeleteId(null);
     }
   };
 
-  const toggleStatus = (user: User) => {
+  const toggleStatus = async (user: User) => {
     if (user.id === currentUser?.id) {
       toast.error('Anda tidak dapat menonaktifkan akun Anda sendiri');
       return;
     }
-    updateUser(user.id, { isActive: !user.isActive });
+    await updateUser(user.id, { isActive: !user.isActive });
     toast.success(`Akun ${user.name} ${!user.isActive ? 'diaktifkan' : 'dinonaktifkan'}`);
   };
 

@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS, PAYMENT_METHOD_LABELS } from '@/lib/types';
 import { formatCurrency, formatDateTime } from '@/lib/utils/format';
 import { OrderStatusUpdate } from '@/components/orders/order-status-update';
+import { PaymentStatusUpdate } from '@/components/orders/payment-status-update';
 import { 
   ArrowLeft, 
   Printer, 
@@ -187,9 +188,12 @@ export default function OrderDetailPage() {
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Status</span>
-                <Badge variant="outline" className={PAYMENT_STATUS_COLORS[order.paymentStatus]}>
-                  {PAYMENT_STATUS_LABELS[order.paymentStatus]}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className={PAYMENT_STATUS_COLORS[order.paymentStatus]}>
+                    {PAYMENT_STATUS_LABELS[order.paymentStatus]}
+                  </Badge>
+                  <PaymentStatusUpdate order={order} />
+                </div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Metode</span>

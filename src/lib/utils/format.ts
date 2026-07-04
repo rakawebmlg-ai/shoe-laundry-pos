@@ -83,3 +83,15 @@ export function getWhatsAppUrl(phone: string, message?: string): string {
   }
   return url;
 }
+
+export async function hashPassword(password: string): Promise<string> {
+  if (typeof crypto === 'undefined' || !crypto.subtle) {
+    console.warn('Web Crypto API not available. Cannot hash password securely.');
+    return password;
+  }
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}

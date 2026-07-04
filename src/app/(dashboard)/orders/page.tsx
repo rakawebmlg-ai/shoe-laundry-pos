@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import { Order, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS } from '@/lib/types';
 import { DataTable } from '@/components/shared/data-table';
@@ -8,7 +8,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { formatCurrency, formatDateTime } from '@/lib/utils/format';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Eye, Plus, MoreHorizontal, Printer, Trash2 } from 'lucide-react';
+import { Eye, Plus, MoreHorizontal, Printer, Trash2, CalendarDays } from 'lucide-react';
 import Link from 'next/link';
 import {
   DropdownMenu,
@@ -18,6 +18,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,10 +40,59 @@ import { useRouter } from 'next/navigation';
 
 export default function OrdersPage() {
   const orders = useAppStore((s) => s.orders);
+  const services = useAppStore((s) => s.services);
   const deleteOrder = useAppStore((s) => s.deleteOrder);
   const router = useRouter();
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // Filters state
+  const [serviceFilter, setServiceFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [paymentFilter, setPaymentFilter] = useState<string>('');
+  const [dateFilter, setDateFilter] = useState<string>('');
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
+
+  const handleDatePreset = (val: string | null) => {
+    const preset = val || '';
+    setDateFilter(preset);
+    if (preset !== 'custom') {
+      setDateFrom('');
+      setDateTo('');
+    }
+  };
+
+  const filteredOrders = useMemo(() => orders.filter((order) => {
+    if (serviceFilter) {
+      const hasService = order.items.some((item) => item.serviceId === serviceFilter);
+      if (!hasService) return false;
+    }
+    if (statusFilter && order.orderStatus !== statusFilter) return false;
+    if (paymentFilter && order.paymentStatus !== paymentFilter) return false;
+    
+    if (dateFilter) {
+      const orderDate = new Date(order.orderDate);
+      const today = new Date();
+      if (dateFilter === 'hari_ini') {
+        if (orderDate.toDateString() !== today.toDateString()) return false;
+      } else if (dateFilter === 'bulan_ini') {
+        if (orderDate.getMonth() !== today.getMonth() || orderDate.getFullYear() !== today.getFullYear()) return false;
+      } else if (dateFilter === 'custom') {
+        if (dateFrom) {
+          const from = new Date(dateFrom);
+          from.setHours(0, 0, 0, 0);
+          if (orderDate < from) return false;
+        }
+        if (dateTo) {
+          const to = new Date(dateTo);
+          to.setHours(23, 59, 59, 999);
+          if (orderDate > to) return false;
+        }
+      }
+    }
+    return true;
+  }), [orders, serviceFilter, statusFilter, paymentFilter, dateFilter, dateFrom, dateTo]);
 
   const handleDelete = () => {
     if (deleteId) {
@@ -156,9 +212,77 @@ export default function OrdersPage() {
 
       <DataTable
         columns={columns}
-        data={orders}
+        data={filteredOrders}
         searchKey="customerName"
         searchPlaceholder="Cari nama pelanggan..."
+        filterContent={
+          <>
+            <Select value={serviceFilter} onValueChange={(val) => setServiceFilter(val || '')}>
+              <SelectTrigger className="h-9 w-[150px] bg-background text-xs">
+                <SelectValue placeholder="Filter Layanan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Semua Layanan</SelectItem>
+                {services.map(s => (
+                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val || '')}>
+              <SelectTrigger className="h-9 w-[150px] bg-background text-xs">
+                <SelectValue placeholder="Filter Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Semua Status</SelectItem>
+                {Object.entries(ORDER_STATUS_LABELS).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={paymentFilter} onValueChange={(val) => setPaymentFilter(val || '')}>
+              <SelectTrigger className="h-9 w-[150px] bg-background text-xs">
+                <SelectValue placeholder="Filter Bayar" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Semua Pembayaran</SelectItem>
+                {Object.entries(PAYMENT_STATUS_LABELS).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={dateFilter} onValueChange={handleDatePreset}>
+              <SelectTrigger className="h-9 w-[150px] bg-background text-xs">
+                <CalendarDays className="w-3 h-3 mr-1 shrink-0" />
+                <SelectValue placeholder="Filter Tanggal" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Semua Tanggal</SelectItem>
+                <SelectItem value="hari_ini">Hari Ini</SelectItem>
+                <SelectItem value="bulan_ini">Bulan Ini</SelectItem>
+                <SelectItem value="custom">Pilih Tanggal...</SelectItem>
+              </SelectContent>
+            </Select>
+            {dateFilter === 'custom' && (
+              <>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="h-9 px-2 text-xs border rounded-md bg-background"
+                  title="Dari tanggal"
+                />
+                <span className="text-xs text-muted-foreground">—</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="h-9 px-2 text-xs border rounded-md bg-background"
+                  title="Sampai tanggal"
+                />
+              </>
+            )}
+          </>
+        }
       />
 
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>

@@ -28,8 +28,8 @@ export default function LoginPage() {
   const { register, handleSubmit, formState: { errors } } = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: 'admin@shoecleanpro.com', // Pre-filled for demo
-      password: 'admin123',
+      email: '', 
+      password: '',
     },
   });
 
@@ -39,7 +39,7 @@ export default function LoginPage() {
     // Simulate network delay
     await new Promise((resolve) => setTimeout(resolve, 800));
 
-    const success = login(values.email, values.password);
+    const success = await login(values.email, values.password);
 
     if (success) {
       toast.success('Login berhasil!', {
@@ -48,7 +48,7 @@ export default function LoginPage() {
       router.push('/');
     } else {
       toast.error('Login gagal', {
-        description: 'Email atau password salah. Coba: admin@shoecleanpro.com / admin123',
+        description: 'Email atau password salah.',
       });
       setIsLoading(false);
     }
@@ -79,7 +79,7 @@ export default function LoginPage() {
                 <Input 
                   id="email" 
                   type="email"
-                  placeholder="admin@shoecleanpro.com" 
+                  placeholder="Masukkan email Anda" 
                   {...register('email')} 
                 />
                 {errors.email && (
@@ -123,11 +123,7 @@ export default function LoginPage() {
             </form>
           </CardContent>
           <CardFooter className="flex-col space-y-2 bg-muted/50 rounded-b-xl border-t border-border mt-2 p-4">
-            <div className="text-xs text-muted-foreground text-center">
-              <p>Demo Akun:</p>
-              <p className="font-medium mt-1">Admin: admin@shoecleanpro.com / admin123</p>
-              <p className="font-medium">Kasir: andi@shoecleanpro.com / kasir123</p>
-            </div>
+              <p className="font-medium mt-1">Sistem Manajemen POS - Laundry Sepatu</p>
           </CardFooter>
         </Card>
       </div>

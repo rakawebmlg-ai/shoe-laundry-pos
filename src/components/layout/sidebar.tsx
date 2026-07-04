@@ -49,7 +49,16 @@ export function Sidebar() {
   const collapsed = useAppStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
   const settings = useAppStore((s) => s.settings);
+  const currentUser = useAppStore((s) => s.currentUser);
   const { theme, setTheme } = useTheme();
+
+  const filteredMenuItems = menuItems.filter(item => {
+    if (currentUser?.role === 'kasir') {
+      const kasirRoutes = ['/', '/orders', '/cashier', '/customers', '/services', '/invoices'];
+      return kasirRoutes.includes(item.href);
+    }
+    return true; // Admin sees everything
+  });
 
   return (
     <aside
@@ -79,7 +88,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-3 px-2.5">
         <ul className="space-y-0.5">
-          {menuItems.map((item) => {
+          {filteredMenuItems.map((item) => {
             const isActive =
               item.href === '/'
                 ? pathname === '/'
