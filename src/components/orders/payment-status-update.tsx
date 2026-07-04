@@ -39,6 +39,7 @@ export function PaymentStatusUpdate({ order, trigger }: PaymentStatusUpdateProps
   const [status, setStatus] = useState<PaymentStatus>(order.paymentStatus);
   const [amountPaid, setAmountPaid] = useState<number>(order.amountPaid);
   const updateOrder = useAppStore((s) => s.updateOrder);
+  const addPayment = useAppStore((s) => s.addPayment);
 
   const handleSubmit = () => {
     if (status === order.paymentStatus && amountPaid === order.amountPaid) {
@@ -55,6 +56,7 @@ export function PaymentStatusUpdate({ order, trigger }: PaymentStatusUpdateProps
     }
 
     const remaining = order.total - finalAmountPaid;
+    const diff = finalAmountPaid - order.amountPaid;
 
     updateOrder(order.id, {
       paymentStatus: status,
@@ -62,6 +64,19 @@ export function PaymentStatusUpdate({ order, trigger }: PaymentStatusUpdateProps
       remaining: remaining,
     });
     
+    if (diff > 0) {
+      addPayment({
+        orderId: order.id,
+        invoiceNumber: order.invoiceNumber,
+        customerName: order.customerName,
+        amount: diff,
+        method: order.paymentMethod || 'tunai',
+        status: status,
+        date: new Date().toISOString(),
+        note: `Update pembayaran: ${PAYMENT_STATUS_LABELS[status]}`,
+      });
+    }
+
     toast.success('Status pembayaran berhasil diupdate');
     
     setOpen(false);
