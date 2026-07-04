@@ -18,18 +18,17 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 async function checkAndSeed() {
   console.log('Checking connection to Supabase...');
   
-  // Try to query services
-  const { data: services, error: fetchError } = await supabase.from('services').select('*').limit(1);
+  // Try to query orders
+  const { data: orders, error: fetchError } = await supabase.from('orders').select('invoice_number').limit(5);
   
   if (fetchError) {
     console.error('Failed to connect or read from Supabase. Error:', fetchError.message);
-    if (fetchError.message.includes('relation "public.services" does not exist')) {
+    if (fetchError.message.includes('relation "public.orders" does not exist')) {
       console.log('It looks like the SQL script has not been run yet to create the tables!');
     }
     return;
   }
 
-  console.log(`Connected successfully! Found ${services?.length || 0} services.`);
 
   if (services && services.length === 0) {
     console.log('Database is empty. Attempting to insert a test service to verify write permissions...');

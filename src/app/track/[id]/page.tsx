@@ -14,6 +14,8 @@ interface TrackPageProps {
   };
 }
 
+export const dynamic = 'force-dynamic';
+
 export default async function TrackPage({ params }: TrackPageProps) {
   const invoiceNumber = params.id;
 
